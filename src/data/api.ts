@@ -11,7 +11,8 @@ export function friendlyError(e: unknown) {
   const m = (e as { message?: string })?.message ?? '';
   if (isNetworkError(e)) return "You're offline. Reconnect and try again. Packing checkmarks still save offline.";
   if (/row-level security|permission/i.test(m)) return m.startsWith('You do not') ? m : "You don't have permission to make this change. Ask an owner or editor.";
-  if (/too large|exceeded|maximum allowed size/i.test(m)) return 'That file is too large. The limit is 25 MB.';
+     if (/rate limit|too many requests|security purposes/i.test(m)) return 'Too many sign-in emails were sent recently. Wait a while and try again, or sign in with your password.';
+   if (/too large|maximum allowed size/i.test(m)) return 'That file is too large. The limit is 25 MB.';
   return m || 'That did not save. Try again.';
 }
 function must<T>(r: { data: T | null; error: unknown }): T { if (r.error) throw r.error; return r.data as T; }
