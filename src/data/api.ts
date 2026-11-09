@@ -11,8 +11,8 @@ export function friendlyError(e: unknown) {
   const m = (e as { message?: string })?.message ?? '';
   if (isNetworkError(e)) return "You're offline. Reconnect and try again. Packing checkmarks still save offline.";
   if (/row-level security|permission/i.test(m)) return m.startsWith('You do not') ? m : "You don't have permission to make this change. Ask an owner or editor.";
-     if (/rate limit|too many requests|security purposes/i.test(m)) return 'Too many sign-in emails were sent recently. Wait a while and try again, or sign in with your password.';
-   if (/too large|maximum allowed size/i.test(m)) return 'That file is too large. The limit is 25 MB.';
+  if (/rate limit|too many requests|security purposes/i.test(m)) return 'Too many sign-in emails were sent recently. Wait a while and try again, or sign in with your password.';
+  if (/too large|maximum allowed size/i.test(m)) return 'That file is too large. The limit is 25 MB.';
   return m || 'That did not save. Try again.';
 }
 function must<T>(r: { data: T | null; error: unknown }): T { if (r.error) throw r.error; return r.data as T; }
@@ -20,7 +20,7 @@ const byEvent = (t: string, id: string, sel = '*') => supabase.from(t).select(se
 
 export async function fetchBundle(id: string): Promise<EventBundle> {
   const event = must(await supabase.from('events').select('*').eq('id', id).single()) as unknown as EventRow;
-  const [days, items, itemPeople, participants, members, wm, travel, travelers, stays, guests, sessions, sessionPeople, lists, packing, tasks, notes, documents, comments, activity, role] = await Promise.all([
+  const [days, items, itemPeople, participants, members, wm, travel, travelers, stays, guests, sessions, sessionPeople, lists, packing, tasks, notes, documents, comments, activity, role, checklists, checklistItems] = await Promise.all([
     byEvent('event_days', id).order('day_date'), byEvent('itinerary_items', id).order('position'), byEvent('activity_participants', id),
     byEvent('event_participants', id).order('created_at'), byEvent('event_members', id),
     supabase.from('workspace_members').select('profile:profiles(*)').eq('workspace_id', event.workspace_id),
@@ -30,12 +30,13 @@ export async function fetchBundle(id: string): Promise<EventBundle> {
     byEvent('documents', id).order('created_at', { ascending: false }), byEvent('comments', id).order('created_at'),
     byEvent('activity_log', id).eq('is_quiet', false).order('created_at', { ascending: false }).limit(30),
     supabase.rpc('event_role', { p_event: id }),
+    byEvent('event_lists', id).order('created_at'), byEvent('event_list_items', id).order('position'),
   ]);
   const m = must as <T>(r: unknown) => T;
   return {
     event, days: m(days), items: m(items), itemPeople: m(itemPeople), participants: m(participants), members: m(members),
     profiles: (m<{ profile: Profile }[]>(wm)).map((r) => r.profile).filter(Boolean), travel: m(travel), travelers: m(travelers), stays: m(stays), guests: m(guests), sessions: m(sessions), sessionPeople: m(sessionPeople),
-    lists: m(lists), packing: m(packing), tasks: m(tasks), notes: m(notes), documents: m(documents), comments: m(comments), activity: m(activity), myRole: m<EventRole>(role),
+    lists: m(lists), packing: m(packing), tasks: m(tasks), notes: m(notes), documents: m(documents), comments: m(comments), activity: m(activity), myRole: m<EventRole>(role), checklists: m(checklists), checklistItems: m(checklistItems),
   };
 }
 /** Network first; the encrypted snapshot is used only if the network is unreachable. */
