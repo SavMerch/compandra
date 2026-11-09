@@ -21,16 +21,55 @@ const takeNext = () => { let v: string | null = null; try { v = sessionStorage.g
 const Apple = () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.9-.8-3.1-.8c-1.6 0-3.1.9-3.9 2.3-1.7 2.9-.4 7.2 1.2 9.5.8 1.1 1.8 2.4 3 2.4s1.7-.8 3.1-.8 1.9.8 3.1.8 2.1-1.2 2.9-2.3c.9-1.3 1.3-2.6 1.3-2.7 0 0-2.7-1-2.7-4zM14 5.6c.7-.8 1.1-1.9 1-3-1 0-2.1.6-2.8 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.1-.6 2.8-1.5z" /></svg>;
 const Google = () => <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden><path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.3H12v4.4h5.9c-.3 1.4-1 2.5-2.2 3.3v2.8h3.6c2-1.9 3.2-4.7 3.2-8.2z" /><path fill="#34A853" d="M12 23c3 0 5.4-1 7.2-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.8 0-5.2-1.9-6.1-4.5H2.2v2.9C4 20.6 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.9 14.1c-.2-.7-.4-1.4-.4-2.1s.1-1.4.4-2.1V7H2.2C1.4 8.5 1 10.2 1 12s.4 3.5 1.2 5l3.7-2.9z" /><path fill="#EA4335" d="M12 5.4c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.4 2.1 15 1 12 1 7.7 1 4 3.4 2.2 7l3.7 2.9c.9-2.6 3.3-4.5 6.1-4.5z" /></svg>;
 
+type Mode = 'signin' | 'signup' | 'forgot' | 'link';
 export function SignInPanel({ next }: { next?: string }) {
-  const [email, setEmail] = React.useState(''); const [sent, setSent] = React.useState(false); const [code, setCode] = React.useState(''); const [busy, setBusy] = React.useState(false);
-  const oauth = async (provider: 'google' | 'apple') => { if (next) setNext(next); const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: authRedirectUrl(), queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined } }); if (error) toast.error(friendlyError(error)); };
-  const send = async (e: React.FormEvent) => { e.preventDefault(); if (next) setNext(next); setBusy(true); const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: authRedirectUrl() } }); setBusy(false); if (error) toast.error(friendlyError(error)); else setSent(true); };
-  const verify = async (e: React.FormEvent) => { e.preventDefault(); setBusy(true); const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' }); setBusy(false); if (error) toast.error('That code is incorrect or has expired. Check it or send a new one.'); };
-  if (sent) return <div className="space-y-3"><p>We sent a sign-in email to <strong>{email}</strong>. Tap the link, or enter the code from the email to stay in the installed app.</p><form onSubmit={verify} className="space-y-3"><Field label="Sign-in code" htmlFor="c"><Input id="c" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} /></Field><Button type="submit" size="lg" className="w-full" disabled={busy || !code.trim()}>Sign in with code</Button></form><Button variant="ghost" className="w-full" onClick={() => setSent(false)}>Use a different email</Button></div>;
+  const [mode, setMode] = React.useState<Mode>('signin');
+  const [email, setEmail] = React.useState(''); const [password, setPassword] = React.useState(''); const [code, setCode] = React.useState('');
+  const [sent, setSent] = React.useState<null | 'link' | 'confirm' | 'reset'>(null); const [busy, setBusy] = React.useState(false);
+  const clean = () => email.trim();
+  const remember = () => { if (next) setNext(next); };
+  const oauth = async (provider: 'google' | 'apple') => { remember(); const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: authRedirectUrl(), queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined } }); if (error) toast.error(friendlyError(error)); };
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); remember(); setBusy(true);
+    try {
+      if (mode === 'signin') {
+        const { error } = await supabase.auth.signInWithPassword({ email: clean(), password });
+        if (error) toast.error(/invalid login/i.test(error.message) ? 'That email and password do not match. Try again, or reset your password.' : /not confirmed/i.test(error.message) ? 'Confirm your email first. Check your inbox for the link.' : friendlyError(error));
+      } else if (mode === 'signup') {
+        if (password.length < 8) { toast.error('Use at least 8 characters for your password.'); return; }
+        const { data, error } = await supabase.auth.signUp({ email: clean(), password, options: { emailRedirectTo: authRedirectUrl() } });
+        if (error) toast.error(friendlyError(error));
+        else if (data.user && !data.user.identities?.length) { toast.error('That email already has an account. Sign in, or reset your password.'); setMode('signin'); }
+        else if (!data.session) setSent('confirm');
+      } else if (mode === 'forgot') {
+        setNext('/profile?reset=1');
+        const { error } = await supabase.auth.resetPasswordForEmail(clean(), { redirectTo: authRedirectUrl() });
+        if (error) toast.error(friendlyError(error)); else setSent('reset');
+      } else {
+        const { error } = await supabase.auth.signInWithOtp({ email: clean(), options: { emailRedirectTo: authRedirectUrl() } });
+        if (error) toast.error(friendlyError(error)); else setSent('link');
+      }
+    } finally { setBusy(false); }
+  };
+  const verify = async (e: React.FormEvent) => { e.preventDefault(); setBusy(true); const { error } = await supabase.auth.verifyOtp({ email: clean(), token: code.trim(), type: 'email' }); setBusy(false); if (error) toast.error('That code is incorrect or has expired. Check it or send a new one.'); };
+  if (sent === 'confirm' || sent === 'reset') return <div className="space-y-3"><p>We sent an email to <strong>{email}</strong>. {sent === 'confirm' ? 'Tap the link in it to confirm your account.' : 'Tap the link in it, on this device, to choose a new password.'}</p><Button variant="ghost" className="w-full" onClick={() => { setSent(null); setMode('signin'); }}>Back to sign-in</Button></div>;
+  if (sent === 'link') return <div className="space-y-3"><p>We sent a sign-in email to <strong>{email}</strong>. Tap the link, or enter the code from the email to stay in the installed app.</p><form onSubmit={verify} className="space-y-3"><Field label="Sign-in code" htmlFor="c"><Input id="c" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} /></Field><Button type="submit" size="lg" className="w-full" disabled={busy || !code.trim()}>Sign in with code</Button></form><Button variant="ghost" className="w-full" onClick={() => setSent(null)}>Use a different email</Button></div>;
+  const usesPassword = mode === 'signin' || mode === 'signup';
+  const label = { signin: 'Sign in', signup: 'Create account', forgot: 'Email me a reset link', link: 'Email me a sign-in link' }[mode];
+  const textLink = 'min-h-11 font-semibold text-teal';
   return <div className="space-y-2.5">
     {authProviders.apple && <Button variant="ink" size="lg" className="w-full bg-black hover:bg-black" onClick={() => oauth('apple')}><Apple />Continue with Apple</Button>}
     {authProviders.google && <Button variant="outline" size="lg" className="w-full" onClick={() => oauth('google')}><Google />Continue with Google</Button>}
-    <form onSubmit={send} className="space-y-2.5 pt-3"><Field label="Or use your email" htmlFor="e"><Input id="e" type="email" required autoCapitalize="off" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" /></Field><Button type="submit" variant="soft" size="lg" className="w-full" disabled={busy}><Mail className="h-5 w-5" />Email me a sign-in link</Button></form>
+    <form onSubmit={submit} className="space-y-3 pt-3">
+      <Field label="Email" htmlFor="e"><Input id="e" type="email" required autoCapitalize="off" autoComplete={mode === 'signup' ? 'email' : 'username'} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" /></Field>
+      {usesPassword && <Field label="Password" htmlFor="p" hint={mode === 'signup' ? 'At least 8 characters.' : undefined}><Input id="p" type="password" required autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} /></Field>}
+      <Button type="submit" size="lg" className="w-full" disabled={busy}>{mode === 'link' && <Mail className="h-5 w-5" />}{busy ? 'One moment…' : label}</Button>
+    </form>
+    <div className="flex flex-wrap justify-between gap-x-4">
+      {mode === 'signin' ? <button type="button" className={textLink} onClick={() => setMode('signup')}>Create an account</button> : <button type="button" className={textLink} onClick={() => setMode('signin')}>Sign in with password</button>}
+      {mode === 'signin' && <button type="button" className={textLink} onClick={() => setMode('forgot')}>Forgot password?</button>}
+    </div>
+    {mode !== 'link' && <button type="button" className="min-h-11 w-full text-[15px] font-medium text-ink-soft" onClick={() => setMode('link')}>Email me a sign-in link instead</button>}
   </div>;
 }
 export function LoginPage() {

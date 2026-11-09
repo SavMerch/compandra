@@ -39,6 +39,18 @@ export function SearchPage() {
 }
 const PROVIDER = { google: 'Google', apple: 'Apple', email: 'Email' } as Record<string, string>;
 const PREFS = [{ k: 'schedule_changes', l: 'Schedule changes' }, { k: 'task_assigned', l: 'Tasks assigned to me' }, { k: 'comments', l: 'Comments' }];
+function PasswordCard() {
+  const [sp, setSp] = useSearchParams(); const resetting = sp.get('reset') === '1';
+  const [pw, setPw] = React.useState(''); const [again, setAgain] = React.useState(''); const [busy, setBusy] = React.useState(false);
+  return <section><h2 className="mb-2 font-display text-[21px] font-semibold">{resetting ? 'Choose a new password' : 'Password'}</h2><Card className="p-4"><form className="space-y-3" onSubmit={async (e) => {
+    e.preventDefault();
+    if (pw.length < 8) return void toast.error('Use at least 8 characters for your password.');
+    if (pw !== again) return void toast.error('Those passwords do not match.');
+    setBusy(true); const { error } = await supabase.auth.updateUser({ password: pw }); setBusy(false);
+    if (error) toast.error(/different from the old/i.test(error.message) ? 'Choose a password different from your current one.' : friendlyError(error));
+    else { toast.success('Password saved'); setPw(''); setAgain(''); if (resetting) setSp({}, { replace: true }); }
+  }}><Field label="New password" htmlFor="np" hint="At least 8 characters."><Input id="np" type="password" required autoFocus={resetting} autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></Field><Field label="Confirm new password" htmlFor="np2"><Input id="np2" type="password" required autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} /></Field><Button type="submit" variant="soft" disabled={busy}>{busy ? 'Saving…' : 'Save password'}</Button></form></Card></section>;
+}
 export function ProfilePage() {
   const { profile, userId, workspace, role, signOut, refresh, session } = useAuth();
   const qc = useQueryClient(); const nav = useNavigate();
@@ -56,6 +68,7 @@ export function ProfilePage() {
       <input ref={fileRef} hidden type="file" accept="image/*" aria-label="Choose photo" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; if (f.size > 5242880) return void toast.error('Choose a photo under 5 MB.'); const path = `${userId}/${uuid()}-${safeName(f.name)}`; const up = await supabase.storage.from('avatars').upload(path, f, { contentType: f.type }); if (up.error) return void toast.error(friendlyError(up.error)); const url = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl; await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId); await refresh(); toast.success('Photo updated'); }} />
       <Button size="sm" variant="soft" className="mt-1" onClick={() => fileRef.current?.click()}><Camera className="h-4 w-4" />Change photo</Button></div></div>
       <form className="flex items-end gap-2" onSubmit={async (e) => { e.preventDefault(); const { error } = await supabase.from('profiles').update({ display_name: name.trim() }).eq('id', userId); if (error) toast.error(friendlyError(error)); else { toast.success('Name saved'); await refresh(); } }}><div className="flex-1"><Field label="Display name" htmlFor="dn"><Input id="dn" required value={name} onChange={(e) => setName(e.target.value)} /></Field></div><Button type="submit" variant="soft">Save</Button></form></Card>
+    <PasswordCard />
     <section><h2 className="mb-2 font-display text-[21px] font-semibold">Sign-in methods</h2><Card className="divide-y divide-line">
       {ids.data?.map((i) => <div key={i.identity_id} className="flex min-h-14 items-center justify-between px-4"><span className="font-medium">{PROVIDER[i.provider] ?? i.provider}</span>{(ids.data?.length ?? 0) > 1 ? <Button size="sm" variant="dangerSoft" onClick={async () => { if (await confirmDialog({ title: `Disconnect ${PROVIDER[i.provider] ?? i.provider}?`, action: 'Disconnect', destructive: true })) { const { error } = await supabase.auth.unlinkIdentity(i); if (error) toast.error(friendlyError(error)); await ids.refetch(); } }}>Disconnect</Button> : <Badge tone="teal">Connected</Badge>}</div>)}
       {(['apple', 'google'] as const).filter((p) => authProviders[p] && !ids.data?.some((i) => i.provider === p)).map((p) => <div key={p} className="flex min-h-14 items-center justify-between px-4"><span className="font-medium">{PROVIDER[p]}</span><Button size="sm" variant="soft" onClick={() => link(p)}>Connect</Button></div>)}
