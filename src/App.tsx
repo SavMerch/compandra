@@ -6,6 +6,7 @@ import { PageLoader } from '@/components/ui/misc';
 import { AppShell } from '@/components/layout/AppShell';
 import { AuthCallback, InvitePage, LoginPage, OnboardingPage } from '@/features/account/Auth';
 import { NotificationsPage, ProfilePage, SearchPage } from '@/features/account/Account';
+import { AdminPage } from '@/features/account/Admin';
 import { EventsPage, HomePage } from '@/features/Home';
 import { NewEventPage } from '@/features/NewEvent';
 import { EventLayout } from '@/features/event/EventLayout';
@@ -16,6 +17,7 @@ import { ParticipantsPage } from '@/features/event/People';
 import { SettingsPage } from '@/features/event/Settings';
 import { CompetitionPage, PassesPage, StayPage, TravelPage } from '@/features/modules/Domain';
 import { PackingPage } from '@/features/modules/Packing';
+import { ListsPage } from '@/features/modules/Lists';
 import { NotesPage, TasksPage } from '@/features/modules/TasksNotes';
 import { DocumentsPage } from '@/features/modules/Documents';
 
@@ -42,6 +44,7 @@ export default function App() {
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="/events/:eventId" element={<EventLayout />}>
             <Route index element={<OverviewPage />} />
             <Route path="today" element={<TodayPage />} />
@@ -51,6 +54,7 @@ export default function App() {
             <Route path="stay" element={<StayPage />} />
             <Route path="competition" element={<CompetitionPage />} />
             <Route path="packing" element={<PackingPage />} />
+            <Route path="lists" element={<ListsPage />} />
             <Route path="tasks" element={<TasksPage />} />
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="notes" element={<NotesPage />} />
