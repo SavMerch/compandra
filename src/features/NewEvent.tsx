@@ -23,23 +23,26 @@ const schema = z.object({ title: z.string().trim().min(1, 'Give your event a nam
 type V = z.infer<typeof schema>;
 
 export function NewEventPage() {
-  const { workspace, userId, role } = useAuth();
+  const { workspace, workspaces, userId } = useAuth();
+  const eligible = workspaces.filter((w) => w.role === 'owner' || w.role === 'editor').map((w) => w.workspace);
+  const [familyId, setFamilyId] = React.useState(workspace?.id ?? '');
+  const target = eligible.find((w) => w.id === familyId) ?? eligible[0];
   const nav = useNavigate(); const qc = useQueryClient();
   const [step, setStep] = React.useState(1);
   const [t, setT] = React.useState<Template | null>(null);
   const [memberIds, setMemberIds] = React.useState<string[]>([]); const [guests, setGuests] = React.useState(''); const [busy, setBusy] = React.useState(false);
   const zone = deviceTimeZone();
   const f = useForm<V>({ resolver: zodResolver(schema), defaultValues: { title: '', start_date: '', end_date: '', destination: '', timezone: zone, primary_venue: '', description: '' } });
-  const members = useQuery({ queryKey: ['ws-members', workspace?.id], enabled: !!workspace, queryFn: () => loadWorkspaceMembers(workspace!.id) });
+  const members = useQuery({ queryKey: ['ws-members', target?.id], enabled: !!target, queryFn: () => loadWorkspaceMembers(target!.id) });
   const zones = commonTimeZones.includes(zone) ? commonTimeZones : [zone, ...commonTimeZones];
   const others = (members.data ?? []).filter((m) => m.user_id !== userId && m.role !== 'guest').map((m) => ({ id: m.user_id, name: m.profile?.display_name || m.profile?.email || 'Family member' }));
-  if (role !== 'owner' && role !== 'editor') return <EmptyState icon={CalendarX} title="Only editors can create events" body="Ask the family owner to change your access."><Button asChild><Link to="/">Go home</Link></Button></EmptyState>;
+  if (!target) return <EmptyState icon={CalendarX} title="Create a family first" body="You've been invited to events in another family. To plan your own, create a family in Profile."><Button asChild><Link to="/profile">Go to Profile</Link></Button></EmptyState>;
   const err = f.formState.errors;
   const create = async (v: V) => {
-    if (!t || !workspace) return;
+    if (!t || !target) return;
     setBusy(true);
     try {
-      const id = await rpc<string>('create_event', { p: { ...v, workspace_id: workspace.id, event_type: t.type, cover_scene: t.scene, modules: t.modules, pinned_modules: t.pinned, member_ids: memberIds, guest_names: guests.split(/[\n,]/), starter_packing: t.packing, starter_tasks: t.tasks } });
+      const id = await rpc<string>('create_event', { p: { ...v, workspace_id: target.id, event_type: t.type, cover_scene: t.scene, modules: t.modules, pinned_modules: t.pinned, member_ids: memberIds, guest_names: guests.split(/[\n,]/), starter_packing: t.packing, starter_tasks: t.tasks } });
       await qc.invalidateQueries({ queryKey: keys.events }); toast.success('Event created'); nav(`/events/${id}`, { replace: true });
     } catch (e) { toast.error(friendlyError(e)); setBusy(false); }
   };
@@ -60,6 +63,7 @@ export function NewEventPage() {
         </div>
         <div className={step === 3 ? 'space-y-5' : 'hidden'}>
           <h1 className="font-display text-[30px] font-bold">Who's coming?</h1>
+          {eligible.length > 1 && <Field label="Which family is this for?" htmlFor="fam"><Select id="fam" value={target.id} onChange={(e) => { setFamilyId(e.target.value); setMemberIds([]); }}>{eligible.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</Select></Field>}
           {others.length > 0 ? <Field label="Family members"><PeoplePicker people={others} value={memberIds} onChange={setMemberIds} /></Field> : <p className="text-ink-soft">You can invite family after creating the event.</p>}
           <Field label="Anyone without an account, like children" htmlFor="g" hint="Separate names with commas."><Input id="g" value={guests} onChange={(e) => setGuests(e.target.value)} placeholder="Avery, Rowan" /></Field>
           <Button type="submit" size="lg" className="w-full" disabled={busy}>{busy ? 'Creating…' : 'Create event'}</Button>
