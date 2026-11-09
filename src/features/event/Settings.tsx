@@ -7,7 +7,6 @@ import { Sheet } from '@/components/ui/sheet';
 import { Card, Field, Input } from '@/components/ui/misc';
 import { SimpleForm, type FieldDef } from '@/components/SimpleForm';
 import { confirmDialog } from '@/components/ui/confirm';
-import { useAuth } from '@/auth/AuthProvider';
 import { rpc, saveVersioned, updateRow, deleteRow, uploadCover } from '@/data/api';
 import { addDays, commonTimeZones } from '@/domain/time';
 import { cn, nullify } from '@/lib/utils';
@@ -17,7 +16,6 @@ import { useEvent } from './EventContext';
 
 export function SettingsPage() {
   const { b, canEdit, run, today } = useEvent();
-  const { role } = useAuth();
   const e = b.event; const nav = useNavigate();
   const [dup, setDup] = React.useState(false); const [title, setTitle] = React.useState(`${e.title} (copy)`); const [start, setStart] = React.useState(addDays(today, 30));
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -45,7 +43,7 @@ export function SettingsPage() {
       <section className="space-y-2">
         <Button variant="soft" className="w-full" onClick={() => setDup(true)}><CopyPlus className="h-5 w-5" />Duplicate event</Button>
         <Button variant="soft" className="w-full" onClick={() => run(() => updateRow('events', e.id, { archived_at: e.archived_at ? null : new Date().toISOString() }).then(() => true), e.archived_at ? 'Restored' : 'Archived')}><Archive className="h-5 w-5" />{e.archived_at ? 'Restore from archive' : 'Archive event'}</Button>
-        {role === 'owner' && <Button variant="dangerSoft" className="w-full" onClick={async () => { if (await confirmDialog({ title: `Delete ${e.title}?`, body: 'This permanently removes the event and everything in it for everyone. Archive it to keep a record.', action: 'Delete forever', destructive: true })) { const ok = await run(() => deleteRow('events', e.id).then(() => true), 'Event deleted'); if (ok) nav('/'); } }}><Trash2 className="h-5 w-5" />Delete event</Button>}
+        {b.myRole === 'owner' && <Button variant="dangerSoft" className="w-full" onClick={async () => { if (await confirmDialog({ title: `Delete ${e.title}?`, body: 'This permanently removes the event and everything in it for everyone. Archive it to keep a record.', action: 'Delete forever', destructive: true })) { const ok = await run(() => deleteRow('events', e.id).then(() => true), 'Event deleted'); if (ok) nav('/'); } }}><Trash2 className="h-5 w-5" />Delete event</Button>}
       </section>
       {dup && <Sheet open onOpenChange={setDup} title="Duplicate event"><form className="space-y-4 pb-3" onSubmit={async (ev) => { ev.preventDefault(); const id = await run(() => rpc<string>('duplicate_event', { p_event: e.id, p_title: title, p_start: start }), 'Event duplicated'); if (id) { setDup(false); nav(`/events/${id}`); } }}><p className="text-ink-soft">Copies activities, packing lists, tasks, and notes. Flights, hotels, sessions, and documents are left out because bookings don't carry over.</p><Field label="New title" htmlFor="dt"><Input id="dt" required value={title} onChange={(x) => setTitle(x.target.value)} /></Field><Field label="New start date" htmlFor="ds"><Input id="ds" type="date" required value={start} onChange={(x) => setStart(x.target.value)} /></Field><Button type="submit" size="lg" className="w-full">Duplicate event</Button></form></Sheet>}
     </div>
