@@ -10,6 +10,7 @@ import type { Profile, Role, Workspace } from '@/domain/types';
 
 interface Ctx {
   session: Session | null; loading: boolean; userId: string; profile: Profile | null; workspace: Workspace | null; role: Role | null;
+  workspaces: { workspace: Workspace; role: Role }[]; setWorkspace: (id: string) => void; familyFilter: string | null; setFamilyFilter: (id: string | null) => void;
   workspacesLoading: boolean; refresh: () => Promise<void>; signOut: () => Promise<void>;
 }
 const AuthCtx = React.createContext<Ctx>(null as unknown as Ctx);
@@ -44,8 +45,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   } });
   const wsQ = useQuery({ queryKey: ['workspaces', userId], enabled: !!userId, queryFn: () => loadWorkspaces(userId) });
 
+  // Active family: the last one chosen on this device, otherwise the first the person belongs to fully.
+  const activeKey = `${brand.storagePrefix}-family-${userId}`;
+  const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [familyFilter, setFilterState] = React.useState<string | null>(null);
+  React.useEffect(() => { if (!userId) return; setFilterState(null); try { setActiveId(localStorage.getItem(`${brand.storagePrefix}-family-${userId}`)); } catch { /* preference only */ } }, [userId]);
+  const setWorkspace = (id: string) => { setActiveId(id); try { localStorage.setItem(activeKey, id); } catch { /* preference only */ } };
+  const setFamilyFilter = (id: string | null) => { setFilterState(id); if (id) setWorkspace(id); };
+  const rows = wsQ.data ?? [];
+  const active = rows.find((r) => r.workspace.id === activeId) ?? rows.find((r) => r.role !== 'guest') ?? rows[0];
+
   const value: Ctx = {
-    session, loading, userId, profile: profileQ.data ?? null, workspace: wsQ.data?.[0]?.workspace ?? null, role: wsQ.data?.[0]?.role ?? null,
+    session, loading, userId, profile: profileQ.data ?? null, workspace: active?.workspace ?? null, role: active?.role ?? null,
+    workspaces: rows, setWorkspace, familyFilter, setFamilyFilter,
     workspacesLoading: !!userId && wsQ.isLoading,
     refresh: async () => { await qc.invalidateQueries({ queryKey: ['profile', userId] }); await qc.invalidateQueries({ queryKey: ['workspaces', userId] }); },
     signOut: async () => {
