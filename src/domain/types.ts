@@ -2,7 +2,7 @@ export type Role = 'owner' | 'editor' | 'viewer' | 'guest';
 export type EventRole = 'owner' | 'editor' | 'viewer';
 export type EventState = 'upcoming' | 'active' | 'completed';
 export type EventType = 'vacation' | 'competition' | 'weekend' | 'gathering' | 'celebration' | 'road_trip' | 'conference' | 'custom';
-export type ModuleKey = 'agenda' | 'travel' | 'stay' | 'competition' | 'packing' | 'tasks' | 'documents' | 'notes' | 'participants';
+export type ModuleKey = 'agenda' | 'travel' | 'stay' | 'competition' | 'packing' | 'tasks' | 'documents' | 'notes' | 'participants' | 'lists';
 export type Category = 'activity' | 'meal' | 'travel' | 'flight' | 'hotel' | 'competition' | 'reservation' | 'entertainment' | 'free_time' | 'shopping' | 'transportation' | 'custom';
 
 export interface Profile { id: string; display_name: string; avatar_url: string | null; email: string | null; notification_prefs: Record<string, boolean>; }
@@ -40,6 +40,8 @@ export interface CompetitionSession {
 }
 export interface PackingList { id: string; event_id: string; name: string; kind: 'shared' | 'individual'; owner_participant_id: string | null; position: number; }
 export interface PackingItem { id: string; event_id: string; list_id: string; name: string; category: string; quantity: number; notes: string | null; assigned_participant_id: string | null; is_packed: boolean; packed_by: string | null; position: number; }
+export interface EventList { id: string; event_id: string; name: string; position: number; }
+export interface EventListItem { id: string; event_id: string; list_id: string; name: string; notes: string | null; is_done: boolean; position: number; }
 export interface PackingTemplate { id: string; workspace_id: string; name: string; items: { name: string; category: string; quantity: number }[]; }
 export interface Task { id: string; event_id: string; title: string; description: string | null; assignee_id: string | null; due_date: string | null; priority: 'low' | 'normal' | 'high'; status: 'open' | 'in_progress' | 'done'; itinerary_item_id: string | null; version: number; }
 export interface Note { id: string; event_id: string; title: string; body: string; is_pinned: boolean; version: number; updated_at: string; updated_by: string | null; }
@@ -54,5 +56,5 @@ export interface EventBundle {
   event: EventRow; days: EventDay[]; items: ItineraryItem[]; itemPeople: { item_id: string; participant_id: string }[];
   participants: Participant[]; members: EventMember[]; profiles: Profile[]; travel: TravelSegment[]; travelers: { segment_id: string; participant_id: string }[];
   stays: Accommodation[]; guests: { accommodation_id: string; participant_id: string }[]; sessions: CompetitionSession[]; sessionPeople: { session_id: string; participant_id: string }[];
-  lists: PackingList[]; packing: PackingItem[]; tasks: Task[]; notes: Note[]; documents: DocumentRow[]; comments: Comment[]; activity: ActivityEntry[]; myRole: EventRole;
+  lists: PackingList[]; packing: PackingItem[]; checklists: EventList[]; checklistItems: EventListItem[]; tasks: Task[]; notes: Note[]; documents: DocumentRow[]; comments: Comment[]; activity: ActivityEntry[]; myRole: EventRole;
 }
