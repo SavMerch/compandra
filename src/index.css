@@ -1,0 +1,54 @@
+@import "tailwindcss";
+@import "@fontsource-variable/figtree";
+@import "@fontsource-variable/bricolage-grotesque";
+
+@theme {
+  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Figtree Variable", sans-serif;
+  --color-paper: #FBFAF6;
+  --color-card: #FFFFFF;
+  --color-sand: #F1EEE6;
+  --color-line: #E5E1D6;
+  --color-ink: #16263D;
+  --color-ink-soft: #55617A;
+  --color-accent: #C94F38;
+  --color-accent-soft: #FBE8E2;
+  --color-teal: #0F6B6B;
+  --color-teal-soft: #DCEFEC;
+  --color-gold: #A36F12;
+  --color-gold-soft: #FAEFD6;
+  --color-danger: #B3261E;
+  --shadow-soft: 0 1px 2px rgb(27 42 65 / .05), 0 8px 24px -12px rgb(27 42 65 / .18);
+  --shadow-lift: 0 12px 40px -14px rgb(27 42 65 / .35);
+  --radius-xl2: 1.25rem;
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); font-size: 17px; line-height: 1.45;
+    -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+  h1, h2, h3 { line-height: 1.15; }
+  /* 16px+ prevents iOS zoom on focus */
+  input, select, textarea { font-size: 17px; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2.5px solid var(--color-teal); outline-offset: 2px; }
+}
+
+@utility font-display { font-family: var(--font-display); font-optical-sizing: auto; letter-spacing: -0.02em; font-variation-settings: "wdth" 92; }
+@utility pt-safe { padding-top: env(safe-area-inset-top); }
+@utility pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+@utility no-scrollbar { scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
+@utility pb-nav { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
+@utility bottom-nav-offset { bottom: calc(5.25rem + env(safe-area-inset-bottom)); }
+
+.page-enter { animation: page-in .22s ease-out both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.skeleton { background: var(--color-sand); border-radius: 12px; animation: shimmer 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* The ticket: perforated edge used for what you need right now (Today, Passes). */
+.ticket { position: relative; background: var(--color-card); border-radius: 18px; box-shadow: var(--shadow-soft); }
+.ticket-perf { position: relative; border-top: 2px dashed var(--color-line); margin: 0 14px; }
+.ticket-perf::before, .ticket-perf::after { content: ""; position: absolute; top: -10px; width: 18px; height: 18px; border-radius: 50%; background: var(--color-paper); }
+.ticket-perf::before { left: -24px; } .ticket-perf::after { right: -24px; }
