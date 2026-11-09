@@ -1,60 +1,51 @@
-export type Role = 'owner' | 'editor' | 'viewer' | 'guest';
-export type EventRole = 'owner' | 'editor' | 'viewer';
-export type EventState = 'upcoming' | 'active' | 'completed';
-export type EventType = 'vacation' | 'competition' | 'weekend' | 'gathering' | 'celebration' | 'road_trip' | 'conference' | 'custom';
-export type ModuleKey = 'agenda' | 'travel' | 'stay' | 'competition' | 'packing' | 'tasks' | 'documents' | 'notes' | 'participants' | 'lists';
-export type Category = 'activity' | 'meal' | 'travel' | 'flight' | 'hotel' | 'competition' | 'reservation' | 'entertainment' | 'free_time' | 'shopping' | 'transportation' | 'custom';
+import type { EventRow, EventState } from './types';
+// Dates are plain 'YYYY-MM-DD' wall-clock values. Formatting pins UTC so the viewer's zone can never shift a day.
+const d = (s: string) => new Date(`${s.slice(0, 10)}T12:00:00Z`);
+const fmt = (s: string, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', ...o }).format(d(s));
 
-export interface Profile { id: string; display_name: string; avatar_url: string | null; email: string | null; notification_prefs: Record<string, boolean>; }
-export interface Workspace { id: string; name: string; owner_id: string; }
-export interface WorkspaceMember { id: string; workspace_id: string; user_id: string; role: Role; profile?: Profile; }
-export interface EventRow {
-  id: string; workspace_id: string; title: string; event_type: EventType; destination: string | null; description: string | null;
-  start_date: string; end_date: string; timezone: string; primary_venue: string | null; notes: string | null; cover_path: string | null;
-  cover_scene: string; visibility: 'workspace' | 'private'; modules: ModuleKey[]; pinned_modules: ModuleKey[]; archived_at: string | null;
-  version: number; updated_at: string; created_by: string | null;
+export function nowInZone(tz: string, at: Date = new Date()): { date: string; time: string } {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(at).map((x) => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}` };
 }
-export interface EventMember { id: string; event_id: string; user_id: string; role: 'editor' | 'viewer'; }
-export interface Participant { id: string; event_id: string; user_id: string | null; display_name: string; is_child: boolean; }
-export interface EventDay { id: string; event_id: string; day_date: string; title: string | null; }
-export interface ItineraryItem {
-  id: string; event_id: string; event_day_id: string | null; title: string; description: string | null; start_time: string | null; end_time: string | null;
-  is_all_day: boolean; location_name: string | null; address: string | null; category: Category; confirmation_number: string | null;
-  reservation_details: string | null; notes: string | null; status: 'planned' | 'confirmed' | 'completed' | 'cancelled'; is_optional: boolean;
-  reminder_minutes: number | null; position: number; source_type: 'travel' | 'accommodation' | 'competition' | null; travel_segment_id: string | null;
-  accommodation_id: string | null; accommodation_kind: 'check_in' | 'check_out' | null; competition_session_id: string | null; version: number;
-  updated_at: string; updated_by: string | null; created_by: string | null;
-}
-export interface TravelSegment {
-  id: string; event_id: string; mode: 'flight' | 'rental_car' | 'personal_vehicle' | 'train' | 'shuttle' | 'other'; direction: 'outbound' | 'return' | 'connecting' | 'other';
-  carrier: string | null; flight_number: string | null; origin: string | null; destination: string | null; depart_local: string; depart_tz: string | null; arrive_local: string | null; arrive_tz: string | null;
-  confirmation_number: string | null; seats: string | null; terminal: string | null; gate: string | null; pickup_location: string | null; dropoff_location: string | null; parking_info: string | null; notes: string | null; version: number;
-}
-export interface Accommodation {
-  id: string; event_id: string; name: string; address: string | null; check_in_local: string; check_out_local: string; confirmation_number: string | null; room_info: string | null;
-  phone: string | null; email: string | null; parking: string | null; special_instructions: string | null; notes: string | null; version: number;
-}
-export interface CompetitionSession {
-  id: string; event_id: string; kind: 'competition' | 'performance' | 'conference' | 'other'; name: string; venue: string | null; address: string | null; organizer: string | null; division: string | null; category: string | null;
-  session_label: string | null; session_date: string; check_in_time: string | null; warmup_time: string | null; start_time: string | null; end_time: string | null; equipment: string | null; notes: string | null; version: number;
-}
-export interface PackingList { id: string; event_id: string; name: string; kind: 'shared' | 'individual'; owner_participant_id: string | null; position: number; }
-export interface PackingItem { id: string; event_id: string; list_id: string; name: string; category: string; quantity: number; notes: string | null; assigned_participant_id: string | null; is_packed: boolean; packed_by: string | null; position: number; }
-export interface EventList { id: string; event_id: string; name: string; position: number; }
-export interface EventListItem { id: string; event_id: string; list_id: string; name: string; notes: string | null; is_done: boolean; position: number; }
-export interface PackingTemplate { id: string; workspace_id: string; name: string; items: { name: string; category: string; quantity: number }[]; }
-export interface Task { id: string; event_id: string; title: string; description: string | null; assignee_id: string | null; due_date: string | null; priority: 'low' | 'normal' | 'high'; status: 'open' | 'in_progress' | 'done'; itinerary_item_id: string | null; version: number; }
-export interface Note { id: string; event_id: string; title: string; body: string; is_pinned: boolean; version: number; updated_at: string; updated_by: string | null; }
-export interface DocumentRow { id: string; event_id: string; name: string; storage_path: string; mime_type: string | null; size_bytes: number | null; doc_type: 'ticket' | 'confirmation' | 'map' | 'schedule' | 'other'; is_important: boolean; itinerary_item_id: string | null; travel_segment_id: string | null; accommodation_id: string | null; competition_session_id: string | null; task_id: string | null; created_at: string; }
-export interface Comment { id: string; event_id: string; itinerary_item_id: string | null; task_id: string | null; body: string; created_by: string | null; created_at: string; }
-export interface NotificationRow { id: string; event_id: string | null; kind: string; title: string; body: string | null; link: string | null; read_at: string | null; created_at: string; actor_id: string | null; }
-export interface ActivityEntry { id: string; event_id: string; actor_id: string | null; entity_type: string; action: 'created' | 'updated' | 'deleted'; summary: string | null; is_quiet: boolean; created_at: string; }
-export interface Invitation { id: string; email: string; role: string; event_id: string | null; expires_at: string; accepted_at: string | null; revoked_at: string | null; }
+export const daysBetween = (a: string, b: string) => Math.round((d(b).getTime() - d(a).getTime()) / 86400000);
+export const addDays = (s: string, n: number) => new Date(d(s).getTime() + n * 86400000).toISOString().slice(0, 10);
 
-/** Everything needed to render an event. One query, one offline snapshot. */
-export interface EventBundle {
-  event: EventRow; days: EventDay[]; items: ItineraryItem[]; itemPeople: { item_id: string; participant_id: string }[];
-  participants: Participant[]; members: EventMember[]; profiles: Profile[]; travel: TravelSegment[]; travelers: { segment_id: string; participant_id: string }[];
-  stays: Accommodation[]; guests: { accommodation_id: string; participant_id: string }[]; sessions: CompetitionSession[]; sessionPeople: { session_id: string; participant_id: string }[];
-  lists: PackingList[]; packing: PackingItem[]; checklists: EventList[]; checklistItems: EventListItem[]; tasks: Task[]; notes: Note[]; documents: DocumentRow[]; comments: Comment[]; activity: ActivityEntry[]; myRole: EventRole;
+export function eventState(e: Pick<EventRow, 'start_date' | 'end_date' | 'timezone'>, at: Date = new Date()): EventState {
+  const today = nowInZone(e.timezone, at).date;
+  if (today < e.start_date) return 'upcoming';
+  return today > e.end_date ? 'completed' : 'active';
 }
+export function countdownLabel(e: Pick<EventRow, 'start_date' | 'end_date' | 'timezone'>, at: Date = new Date()) {
+  const today = nowInZone(e.timezone, at).date;
+  const s = eventState(e, at);
+  if (s === 'upcoming') { const n = daysBetween(today, e.start_date); return n === 1 ? 'Tomorrow' : `In ${n} days`; }
+  if (s === 'active') return `Day ${daysBetween(e.start_date, today) + 1} of ${daysBetween(e.start_date, e.end_date) + 1}`;
+  return 'Completed';
+}
+export const formatDayLong = (s: string) => fmt(s, { weekday: 'long', month: 'long', day: 'numeric' });
+export const formatDayShort = (s: string) => fmt(s, { weekday: 'short', month: 'short', day: 'numeric' });
+export const formatWeekday = (s: string) => fmt(s, { weekday: 'short' });
+export const formatDayNum = (s: string) => fmt(s, { day: 'numeric' });
+export function formatRange(a: string, b: string) {
+  if (a === b) return fmt(a, { month: 'short', day: 'numeric', year: 'numeric' });
+  const same = a.slice(0, 7) === b.slice(0, 7);
+  return `${fmt(a, { month: 'short', day: 'numeric' })} – ${same ? fmt(b, { day: 'numeric' }) : fmt(b, { month: 'short', day: 'numeric' })}, ${b.slice(0, 4)}`;
+}
+export function formatTime(t?: string | null) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+/** Postgres timestamps come back as 'YYYY-MM-DDTHH:MM:SS'; datetime-local wants minutes. */
+export const toLocalInput = (ts?: string | null) => (ts ? ts.replace(' ', 'T').slice(0, 16) : '');
+export const formatLocalStamp = (ts?: string | null) => (ts ? `${formatDayShort(ts)}, ${formatTime(ts.replace(' ', 'T').slice(11, 16))}` : '');
+export const hhmm = (t?: string | null) => (t ? t.slice(0, 5) : '');
+export function timeAgo(iso: string, at: Date = new Date()) {
+  const s = Math.max(0, (at.getTime() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return 'Just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+export const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
+export const commonTimeZones = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu', 'America/Toronto', 'America/Mexico_City', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo', 'Australia/Sydney', 'UTC'];
